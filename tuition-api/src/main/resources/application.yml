@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: tuition-api
+  config:
+    # Local dev: read DB settings from the repo-root .env file (gitignored).
+    # In the cloud the same keys come from environment variables.
+    import: optional:file:../.env[.properties]
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:tuition}
+    username: ${DB_USERNAME:tuition}
+    password: ${DB_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  mvc:
+    problemdetails:
+      enabled: true
+  web:
+    # API messages (incl. Bean Validation) are always English, regardless of
+    # the server's default locale or the client's Accept-Language header.
+    locale: en
+    locale-resolver: fixed
+  servlet:
+    multipart:
+      max-file-size: 1MB
+      max-request-size: 1MB
+
+server:
+  # 8081 by default so it does not clash with other local services on 8080.
+  port: ${SERVER_PORT:8081}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
