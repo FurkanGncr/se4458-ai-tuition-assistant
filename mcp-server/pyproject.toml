@@ -1,0 +1,28 @@
+[project]
+name = "tuition-policy-mcp"
+version = "0.1.0"
+description = "MCP server exposing search_tuition_policies(query) over a BM25 index of University_Tuition_Policies.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "mcp>=2.3.0,<3",
+    "snowballstemmer>=3.1.1,<4",
+]
+
+[project.scripts]
+policy-mcp = "policy_mcp.server:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "policy_mcp"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"

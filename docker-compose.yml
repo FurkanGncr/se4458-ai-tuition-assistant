@@ -71,5 +71,23 @@ services:
       timeout: 5s
       retries: 10
 
+  # Policy search for the AI agent (MCP, Streamable HTTP). Not behind Kong: the MCP path is
+  # separate from the REST/gateway path. Endpoint: http://localhost:${MCP_PORT:-8091}/mcp
+  mcp-server:
+    build:
+      context: ./mcp-server
+      additional_contexts:
+        policy: ./docs
+    container_name: tuition-mcp
+    ports:
+      # 8091 by default (8000 is often taken on dev machines).
+      - "${MCP_PORT:-8091}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('127.0.0.1', 8000), 2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
 volumes:
   pgdata:
