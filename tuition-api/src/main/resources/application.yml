@@ -33,6 +33,13 @@ spring:
       max-file-size: 1MB
       max-request-size: 1MB
 
+jwt:
+  # HS256 signing secret, at least 32 bytes. Comes from JWT_SECRET (.env locally, env var in the cloud).
+  # The API gateway verifies tokens with the same secret and issuer.
+  secret: ${JWT_SECRET:}
+  issuer: ${JWT_ISSUER:tuition-api}
+  ttl: ${JWT_TTL:60m}
+
 server:
   # 8081 by default so it does not clash with other local services on 8080.
   port: ${SERVER_PORT:8081}

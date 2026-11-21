@@ -30,7 +30,8 @@ public class MobileTuitionController {
 
     @GetMapping("/{studentNo}")
     @Operation(summary = "Query tuition",
-            description = "No authentication. Limited to 3 calls per student per day (enforced at the API gateway). "
+            description = "No authentication (no token needed). Limited to 3 calls per student per day "
+                    + "(enforced at the API gateway). "
                     + "With `term`: that term's total, paid amount and balance. Without `term`: every term plus "
                     + "overall totals per currency.")
     @ApiResponse(responseCode = "200", description = "Tuition found")

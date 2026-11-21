@@ -16,14 +16,19 @@ import edu.se4458.tuition.error.NotFoundException;
 import edu.se4458.tuition.service.PaymentService;
 import java.math.BigDecimal;
 import java.time.Instant;
+import edu.se4458.tuition.config.SecurityConfig;
+import edu.se4458.tuition.security.TestTokens;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(BankingPaymentController.class)
+@Import({SecurityConfig.class, TestTokens.class})
 class BankingPaymentControllerTest {
 
     private static final String URL = "/api/v1/banking/payments";
@@ -33,6 +38,9 @@ class BankingPaymentControllerTest {
 
     @Autowired
     private MockMvc mvc;
+
+    @Autowired
+    private TestTokens tokens;
 
     @MockitoBean
     private PaymentService paymentService;
@@ -44,7 +52,8 @@ class BankingPaymentControllerTest {
                 new BigDecimal("2500.00"), new BigDecimal("2500.00"), "USD",
                 Instant.parse("2026-11-22T10:00:00Z")));
 
-        mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokens.student("20230001"))
+                        .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.status").value("SUCCESS"))
                 .andExpect(jsonPath("$.paidAmount").value(500.00))
@@ -58,7 +67,8 @@ class BankingPaymentControllerTest {
                 {"studentNo":"20230001","term":"2026-FALL","amount":-5}
                 """;
 
-        mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
+        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokens.student("20230001"))
+                        .contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.type").value("urn:tuition:problem:validation-failed"))
@@ -70,7 +80,8 @@ class BankingPaymentControllerTest {
 
     @Test
     void returns400_whenBodyIsNotJson() throws Exception {
-        mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content("{not json"))
+        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokens.student("20230001"))
+                        .contentType(MediaType.APPLICATION_JSON).content("{not json"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON));
         verifyNoInteractions(paymentService);
@@ -81,7 +92,8 @@ class BankingPaymentControllerTest {
         when(paymentService.pay(any(PaymentRequest.class))).thenThrow(new NotFoundException("tuition-not-found",
                 "No tuition record for student 20230001 in term 2026-FALL"));
 
-        mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokens.student("20230001"))
+                        .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.type").value("urn:tuition:problem:tuition-not-found"));
     }
@@ -91,7 +103,8 @@ class BankingPaymentControllerTest {
         when(paymentService.pay(any(PaymentRequest.class))).thenThrow(new ConflictException("duplicate-transaction",
                 "A payment with transactionId tx-1 already exists"));
 
-        mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokens.student("20230001"))
+                        .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                 .andExpect(status().isConflict())
                 .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
                 .andExpect(jsonPath("$.type").value("urn:tuition:problem:duplicate-transaction"))
@@ -103,9 +116,51 @@ class BankingPaymentControllerTest {
         when(paymentService.pay(any(PaymentRequest.class))).thenThrow(new BusinessRuleException(
                 "payment-exceeds-balance", "Payment amount 500.00 exceeds the outstanding balance 100.00 USD"));
 
-        mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokens.student("20230001"))
+                        .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.type").value("urn:tuition:problem:payment-exceeds-balance"))
                 .andExpect(jsonPath("$.status").value(422));
+    }
+
+    // ---- Authentication and ownership ----
+
+    @Test
+    void returns401_whenNoToken() throws Exception {
+        mvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+                .andExpect(status().isUnauthorized())
+                .andExpect(content().contentType(MediaType.APPLICATION_PROBLEM_JSON))
+                .andExpect(jsonPath("$.type").value("urn:tuition:problem:unauthorized"));
+        verifyNoInteractions(paymentService);
+    }
+
+    @Test
+    void returns403_whenStudentPaysForAnotherStudent() throws Exception {
+        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokens.student("20230003"))
+                        .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.type").value("urn:tuition:problem:forbidden"));
+        verifyNoInteractions(paymentService);
+    }
+
+    @Test
+    void returns201_whenBankPaysForAnyStudent() throws Exception {
+        when(paymentService.pay(any(PaymentRequest.class))).thenReturn(new PaymentResponse(
+                PaymentResponse.Status.SUCCESS, "tx-1", "20230001", "2026-FALL", new BigDecimal("500.00"),
+                new BigDecimal("2500.00"), new BigDecimal("2500.00"), "USD",
+                Instant.parse("2026-11-22T10:00:00Z")));
+
+        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokens.bank())
+                        .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("SUCCESS"));
+    }
+
+    @Test
+    void returns403_forAdminToken() throws Exception {
+        mvc.perform(post(URL).header(HttpHeaders.AUTHORIZATION, tokens.admin())
+                        .contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(paymentService);
     }
 }

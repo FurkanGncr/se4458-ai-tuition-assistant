@@ -13,6 +13,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -35,6 +36,7 @@ import org.springframework.web.multipart.MultipartFile;
 @RestController
 @RequestMapping("/api/v1/admin/tuition")
 @Tag(name = "University Web Site - Admin")
+@SecurityRequirement(name = OpenApiNames.BEARER_AUTH)
 public class AdminTuitionController {
 
     private final TuitionAdminService adminService;
@@ -59,6 +61,12 @@ public class AdminTuitionController {
     @ApiResponse(responseCode = "409", description = "Amount below paid amount, or currency change after payments",
             content = @Content(mediaType = "application/problem+json",
                     schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "401", description = "Missing, invalid or expired token",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "403", description = "Not an ADMIN token",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<AddTuitionResponse> addTuition(@Valid @RequestBody AddTuitionRequest request) {
         AddTuitionResponse response = adminService.upsert(request);
         HttpStatus status = response.status() == AddTuitionResponse.Status.CREATED ? HttpStatus.CREATED : HttpStatus.OK;
@@ -72,6 +80,12 @@ public class AdminTuitionController {
                     + "the batch. Row numbers are line numbers in the file (header = line 1).")
     @ApiResponse(responseCode = "200", description = "Batch processed; see the counts and row errors")
     @ApiResponse(responseCode = "400", description = "File missing, empty, or wrong header",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "401", description = "Missing, invalid or expired token",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "403", description = "Not an ADMIN token",
             content = @Content(mediaType = "application/problem+json",
                     schema = @Schema(implementation = ProblemDetail.class)))
     public BatchResult addTuitionBatch(
@@ -88,6 +102,12 @@ public class AdminTuitionController {
                     + "number.")
     @ApiResponse(responseCode = "200", description = "One page of unpaid tuition")
     @ApiResponse(responseCode = "400", description = "Missing or invalid term, page or pageSize",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "401", description = "Missing, invalid or expired token",
+            content = @Content(mediaType = "application/problem+json",
+                    schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "403", description = "Not an ADMIN token",
             content = @Content(mediaType = "application/problem+json",
                     schema = @Schema(implementation = ProblemDetail.class)))
     public UnpaidTuitionPage unpaidTuition(

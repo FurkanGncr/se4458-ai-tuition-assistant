@@ -15,14 +15,18 @@ import edu.se4458.tuition.error.NotFoundException;
 import edu.se4458.tuition.service.TuitionQueryService;
 import java.math.BigDecimal;
 import java.util.List;
+import edu.se4458.tuition.config.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+/** The mobile route stays public: every request here is sent without a token, with security enabled. */
 @WebMvcTest(MobileTuitionController.class)
+@Import(SecurityConfig.class)
 class MobileTuitionControllerTest {
 
     @Autowired
