@@ -1,3 +1,5 @@
+# Whole local stack: docker compose up -d --build
+# Public entry point is the Kong gateway: http://localhost:${KONG_PROXY_PORT:-8090}
 services:
   postgres:
     image: postgres:17-alpine
@@ -8,6 +10,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
     ports:
       # Host port 5433 by default (5432 is often taken on dev machines).
+      # Only for local development with ./mvnw spring-boot:run; the API container uses the internal network.
       - "${DB_PORT:-5433}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -15,6 +18,57 @@ services:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
+      retries: 10
+
+  tuition-api:
+    build: ./tuition-api
+    container_name: tuition-api
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: ${DB_NAME:-tuition}
+      DB_USERNAME: ${DB_USERNAME:-tuition}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    # No host port: the API is reached only through the gateway.
+    expose:
+      - "8081"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      # The port opens only after Flyway and the Spring context are ready.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8081"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  kong:
+    image: kong:3.9.1
+    container_name: tuition-kong
+    entrypoint: ["/kong/render-config.sh"]
+    environment:
+      KONG_DATABASE: "off"
+      KONG_PROXY_LISTEN: 0.0.0.0:8000
+      KONG_ADMIN_LISTEN: "off"
+      # Tells Kong which host port maps to its proxy port, so X-Forwarded-Port (and Swagger's server URL) is right.
+      KONG_PORT_MAPS: ${KONG_PROXY_PORT:-8090}:8000
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+    volumes:
+      - ./gateway:/kong:ro
+    ports:
+      # 8090 by default (8000 is often taken on dev machines).
+      - "${KONG_PROXY_PORT:-8090}:8000"
+    depends_on:
+      tuition-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 5s
+      timeout: 5s
       retries: 10
 
 volumes:

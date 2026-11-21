@@ -43,6 +43,8 @@ jwt:
 server:
   # 8081 by default so it does not clash with other local services on 8080.
   port: ${SERVER_PORT:8081}
+  # Behind the Kong gateway: use its X-Forwarded-* headers, so Swagger's server URL is the gateway URL.
+  forward-headers-strategy: framework
 
 springdoc:
   swagger-ui:

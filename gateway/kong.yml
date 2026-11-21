@@ -1,0 +1,78 @@
+# Kong declarative configuration (DB-less mode).
+#
+# Every public REST route of the Tuition API is exposed here under /api/v1/...
+# Any other path gets Kong's 404 "no Route matched", so nothing else of the API is reachable.
+#
+# ${JWT_SECRET} is a placeholder. gateway/render-config.sh replaces it with the JWT_SECRET
+# environment variable when the container starts, so the secret is never stored in this file.
+_format_version: "3.0"
+_transform: true
+
+services:
+  - name: tuition-api
+    url: http://tuition-api:8081
+    routes:
+      # Open: get a JWT.
+      - name: auth-login
+        methods: [POST]
+        paths: [/api/v1/auth/login]
+        strip_path: false
+
+      # Open, but limited to 3 calls per student number per day (not per client IP).
+      - name: mobile-tuition
+        methods: [GET]
+        paths: ["~/api/v1/mobile/tuition/[^/]+$"]
+        strip_path: false
+        plugins:
+          # Runs before every other plugin. Copies the student number from the path into a
+          # header so rate-limiting can count per student. A client-sent value is overwritten.
+          - name: pre-function
+            config:
+              access:
+                - |
+                  local student_no = kong.request.get_path():match("^/api/v1/mobile/tuition/([^/]+)$")
+                  kong.service.request.set_header("X-RateLimit-Student", student_no)
+          - name: rate-limiting
+            config:
+              day: 3
+              limit_by: header
+              header_name: X-RateLimit-Student
+              policy: local
+              fault_tolerant: true
+
+      # Protected: STUDENT or BANK token (roles and ownership are checked again by the API).
+      - name: banking
+        methods: [GET, POST]
+        paths: [/api/v1/banking]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config: &jwt_config
+              key_claim_name: iss
+              claims_to_verify: [exp]
+              header_names: [authorization]
+              uri_param_names: []
+              cookie_names: []
+
+      # Protected: ADMIN token (the role is checked by the API).
+      - name: admin
+        methods: [GET, POST]
+        paths: [/api/v1/admin]
+        strip_path: false
+        plugins:
+          - name: jwt
+            config: *jwt_config
+
+      # Open: Swagger UI and the OpenAPI document, served through the gateway.
+      - name: api-docs
+        methods: [GET]
+        paths: [/swagger-ui.html, /swagger-ui, /v3/api-docs]
+        strip_path: false
+
+# The JWT plugin finds the signing key by the token's "iss" claim.
+consumers:
+  - username: tuition-api-issuer
+    jwt_secrets:
+      - key: tuition-api
+        algorithm: HS256
+        secret: "${JWT_SECRET}"
