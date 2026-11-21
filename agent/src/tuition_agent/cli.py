@@ -25,6 +25,13 @@ from tuition_agent.tuition_api import ApiError, TuitionApiClient
 EXIT_WORDS = {"exit", "quit"}
 MAX_LOGIN_ATTEMPTS = 3
 
+# REST calls go to the gateway, which is always running, so connecting is fast. In the cloud the
+# Tuition API scales to zero when idle, and its cold start (container start + Spring + Flyway) can
+# take 30-60 s. The read timeout is a bit longer than the gateway's upstream read_timeout (120 s,
+# gateway/kong.yml), so a failed cold start shows the gateway's error instead of a client timeout.
+HTTP_TIMEOUT = httpx.Timeout(130.0, connect=10.0)
+COLD_START_NOTE = "Note: the first request can take up to a minute while cloud services wake up."
+
 
 class LoginFailed(Exception):
     pass
@@ -55,8 +62,9 @@ async def login(api: TuitionApiClient, gateway_url: str) -> Session:
 
 
 async def chat(settings: Settings) -> None:
-    async with httpx.AsyncClient(base_url=settings.gateway_url, timeout=15.0) as http:
+    async with httpx.AsyncClient(base_url=settings.gateway_url, timeout=HTTP_TIMEOUT) as http:
         api = TuitionApiClient(http)
+        print(COLD_START_NOTE)
         session = await login(api, settings.gateway_url)
         llm = OpenAIChatLLM(
             AsyncOpenAI(api_key=settings.openai_api_key), settings.openai_model, settings.reasoning_effort

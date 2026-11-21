@@ -3,14 +3,19 @@
 # Every public REST route of the Tuition API is exposed here under /api/v1/...
 # Any other path gets Kong's 404 "no Route matched", so nothing else of the API is reachable.
 #
-# ${JWT_SECRET} is a placeholder. gateway/render-config.sh replaces it with the JWT_SECRET
-# environment variable when the container starts, so the secret is never stored in this file.
+# ${JWT_SECRET} and ${TUITION_API_URL} are placeholders. gateway/render-config.sh replaces them
+# with environment variables when the container starts, so the secret is never stored in this file.
+# TUITION_API_URL defaults to http://tuition-api:8081 (docker compose); in Azure Container Apps
+# it is http://tuition-api (internal ingress on port 80).
 _format_version: "3.0"
 _transform: true
 
 services:
   - name: tuition-api
-    url: http://tuition-api:8081
+    url: "${TUITION_API_URL}"
+    # In the cloud the API scales to zero when idle; the first request waits for its cold start
+    # (container start + Spring + Flyway). Kong's default read timeout is 60 s, so allow 120 s.
+    read_timeout: 120000
     routes:
       # Open: get a JWT.
       - name: auth-login
