@@ -1,0 +1,30 @@
+[project]
+name = "tuition-agent"
+version = "0.1.0"
+description = "CLI AI Tuition Assistant: LLM function calling over the Tuition REST API (via Kong) and the policy MCP server"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "openai>=3.57.0,<4",
+    "mcp>=2.3.0,<3",
+    "httpx>=0.28.1,<1",
+    "python-dotenv>=1.2.4,<2",
+]
+
+[project.scripts]
+tuition-agent = "tuition_agent.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.0,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "tuition_agent"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
