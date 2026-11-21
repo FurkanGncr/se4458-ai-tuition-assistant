@@ -1,0 +1,1038 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Tuition API",
+    "description": "Tuition REST API for the university mobile app, banking app and admin web site.\nAll routes are versioned under /api/v1. Errors use RFC 7807 Problem Details (application/problem+json). Money uses 2 decimals with HALF_UP rounding.\n\nAuthentication: call POST /api/v1/auth/login, then click \"Authorize\" and paste the accessToken. Mobile Query Tuition and login need no token.",
+    "version": "v1"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8090",
+      "description": "Generated server url"
+    }
+  ],
+  "paths": {
+    "/api/v1/banking/payments": {
+      "post": {
+        "tags": [
+          "Banking App"
+        ],
+        "summary": "Pay tuition",
+        "description": "Requires a STUDENT token (own student number only) or a BANK token (any student). Records a simulated partial or full payment for one term. No real card processing. Rejects duplicate transaction IDs (409) and amounts above the term's balance (422).",
+        "operationId": "pay",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PaymentRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Payment recorded",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaymentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role not allowed, or a STUDENT token for another student",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No tuition record for the student and term",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Duplicate transaction ID",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Amount exceeds the balance, or the term is already paid",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Authentication"
+        ],
+        "summary": "Log in",
+        "description": "Returns a JWT access token (HS256). Use it as 'Authorization: Bearer <token>' for the banking and admin endpoints. Roles: STUDENT (own student number only), BANK (any student), ADMIN (admin endpoints).",
+        "operationId": "login",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Logged in",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Username or password missing",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Username or password is incorrect",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/tuition": {
+      "post": {
+        "tags": [
+          "University Web Site - Admin"
+        ],
+        "summary": "Add tuition",
+        "description": "Creates or updates (upsert) the tuition of a student for a term. There is one record per (studentNo, term): a repeated request updates the amount and returns 200 UPDATED; a new record returns 201 CREATED. The amount may not be lower than what is already paid, and the currency may change only while nothing has been paid (409 otherwise).",
+        "operationId": "addTuition",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddTuitionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddTuitionResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Updated",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddTuitionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Amount below paid amount, or currency change after payments",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an ADMIN token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tuition/batch": {
+      "post": {
+        "tags": [
+          "University Web Site - Admin"
+        ],
+        "summary": "Add tuition - batch",
+        "description": "Uploads a CSV file (max 1 MB) with the header `studentNo,term,amount,currency`. Each row is processed like Add Tuition, independently: invalid rows are reported and do not stop the batch. Row numbers are line numbers in the file (header = line 1).",
+        "operationId": "addTuitionBatch",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "CSV file"
+                  }
+                },
+                "required": [
+                  "file"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Batch processed; see the counts and row errors",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "File missing, empty, or wrong header",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an ADMIN token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/mobile/tuition/{studentNo}": {
+      "get": {
+        "tags": [
+          "University Mobile App"
+        ],
+        "summary": "Query tuition",
+        "description": "No authentication (no token needed). Limited to 3 calls per student per day (enforced at the API gateway). With `term`: that term's total, paid amount and balance. Without `term`: every term plus overall totals per currency.",
+        "operationId": "queryTuition",
+        "parameters": [
+          {
+            "name": "studentNo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9]{1,20}$"
+            },
+            "example": 20230001
+          },
+          {
+            "name": "term",
+            "in": "query",
+            "description": "Optional term; omit for the overall balance",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-(FALL|SPRING)$"
+            },
+            "example": "2026-FALL"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tuition found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TuitionQueryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid student number or term",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Student or tuition record not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/banking/tuition/{studentNo}": {
+      "get": {
+        "tags": [
+          "Banking App"
+        ],
+        "summary": "Query tuition",
+        "description": "Requires a STUDENT token (own student number only) or a BANK token (any student). With `term`: that term's total, paid amount and balance. Without `term`: every term plus overall totals per currency.",
+        "operationId": "queryTuition_1",
+        "parameters": [
+          {
+            "name": "studentNo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9]{1,20}$"
+            },
+            "example": 20230001
+          },
+          {
+            "name": "term",
+            "in": "query",
+            "description": "Optional term; omit for the overall balance",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-(FALL|SPRING)$"
+            },
+            "example": "2026-FALL"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Tuition found",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/TuitionQueryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid student number or term",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Role not allowed, or a STUDENT token for another student",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Student or tuition record not found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/v1/admin/tuition/unpaid": {
+      "get": {
+        "tags": [
+          "University Web Site - Admin"
+        ],
+        "summary": "Unpaid tuition status",
+        "description": "Paged list of students with a balance greater than 0 for the term, ordered by student number.",
+        "operationId": "unpaidTuition",
+        "parameters": [
+          {
+            "name": "term",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]{4}-(FALL|SPRING)$"
+            },
+            "example": "2026-FALL"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "1-based page number",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "Items per page, 1-100",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of unpaid tuition",
+            "content": {
+              "*/*": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnpaidTuitionPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing or invalid term, page or pageSize",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid or expired token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Not an ADMIN token",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ]
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "PaymentRequest": {
+        "type": "object",
+        "description": "Simulated tuition payment. No real card processing.",
+        "properties": {
+          "studentNo": {
+            "type": "string",
+            "example": "20230001",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9]{1,20}$"
+          },
+          "term": {
+            "type": "string",
+            "example": "2026-FALL",
+            "minLength": 1,
+            "pattern": "^[0-9]{4}-(FALL|SPRING)$"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Amount in the tuition's currency. Rounded HALF_UP to 2 decimals; must be > 0 and not exceed the term's balance.",
+            "example": 500.0,
+            "exclusiveMinimum": 0
+          },
+          "transactionId": {
+            "type": "string",
+            "description": "Client-generated idempotency key (e.g. a UUID). A repeated ID is rejected with 409.",
+            "example": "6f1c2a7e-8a52-4a8e-9a43-0f0b1f8f2c11",
+            "maxLength": 64,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "amount",
+          "studentNo",
+          "term",
+          "transactionId"
+        ]
+      },
+      "ProblemDetail": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string",
+            "format": "uri"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {}
+          }
+        }
+      },
+      "PaymentResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUCCESS"
+            ],
+            "example": "SUCCESS"
+          },
+          "transactionId": {
+            "type": "string",
+            "example": "6f1c2a7e-8a52-4a8e-9a43-0f0b1f8f2c11"
+          },
+          "studentNo": {
+            "type": "string",
+            "example": "20230001"
+          },
+          "term": {
+            "type": "string",
+            "example": "2026-FALL"
+          },
+          "paidAmount": {
+            "type": "number",
+            "description": "Amount of this payment",
+            "example": 500.0
+          },
+          "totalPaid": {
+            "type": "number",
+            "description": "Total paid for the term after this payment",
+            "example": 2500.0
+          },
+          "remainingBalance": {
+            "type": "number",
+            "description": "Balance of the term after this payment",
+            "example": 2500.0
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "description": "Username and password. Students log in with their student number as the username.",
+        "properties": {
+          "username": {
+            "type": "string",
+            "example": "20230001",
+            "maxLength": 50,
+            "minLength": 0
+          },
+          "password": {
+            "type": "string",
+            "example": "Student123!",
+            "maxLength": 100,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "password",
+          "username"
+        ]
+      },
+      "LoginResponse": {
+        "type": "object",
+        "description": "A signed JWT access token. Send it as 'Authorization: Bearer <accessToken>'.",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "tokenType": {
+            "type": "string",
+            "example": "Bearer"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Token lifetime in seconds",
+            "example": 3600
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "STUDENT",
+              "BANK",
+              "ADMIN"
+            ]
+          },
+          "studentNo": {
+            "type": "string",
+            "description": "The linked student number; null for BANK and ADMIN",
+            "example": "20230001"
+          }
+        }
+      },
+      "AddTuitionRequest": {
+        "type": "object",
+        "description": "Create or update (upsert) the tuition of a student for a term.",
+        "properties": {
+          "studentNo": {
+            "type": "string",
+            "description": "Unknown student numbers are created automatically (without a name).",
+            "example": "20230005",
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9]{1,20}$"
+          },
+          "term": {
+            "type": "string",
+            "example": "2026-FALL",
+            "minLength": 1,
+            "pattern": "^[0-9]{4}-(FALL|SPRING)$"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Tuition total. Rounded HALF_UP to 2 decimals; must be > 0 and not lower than the amount already paid.",
+            "example": 5000.0,
+            "exclusiveMinimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "description": "ISO 4217 code. Can change only while nothing has been paid for the term.",
+            "example": "USD",
+            "minLength": 1,
+            "pattern": "^[A-Z]{3}$"
+          }
+        },
+        "required": [
+          "amount",
+          "currency",
+          "studentNo",
+          "term"
+        ]
+      },
+      "AddTuitionResponse": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "CREATED for a new (student, term) record, UPDATED for an existing one",
+            "enum": [
+              "CREATED",
+              "UPDATED"
+            ],
+            "example": "CREATED"
+          },
+          "studentNo": {
+            "type": "string",
+            "example": "20230005"
+          },
+          "term": {
+            "type": "string",
+            "example": "2026-FALL"
+          },
+          "amount": {
+            "type": "number",
+            "example": 5000.0
+          },
+          "paidAmount": {
+            "type": "number",
+            "example": 0.0
+          },
+          "balance": {
+            "type": "number",
+            "example": 5000.0
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          }
+        }
+      },
+      "BatchResult": {
+        "type": "object",
+        "description": "Result of a CSV batch. Each row is processed independently; invalid rows do not stop the batch.",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "COMPLETED (all rows ok), COMPLETED_WITH_ERRORS (some failed), FAILED (all failed)",
+            "enum": [
+              "COMPLETED",
+              "COMPLETED_WITH_ERRORS",
+              "FAILED"
+            ],
+            "example": "COMPLETED_WITH_ERRORS"
+          },
+          "totalRows": {
+            "type": "integer",
+            "format": "int32",
+            "example": 3
+          },
+          "successCount": {
+            "type": "integer",
+            "format": "int32",
+            "example": 2
+          },
+          "failureCount": {
+            "type": "integer",
+            "format": "int32",
+            "example": 1
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RowError"
+            }
+          }
+        }
+      },
+      "RowError": {
+        "type": "object",
+        "properties": {
+          "row": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Line number in the file (the header is line 1)",
+            "example": 3
+          },
+          "reason": {
+            "type": "string",
+            "example": "term must be YYYY-FALL or YYYY-SPRING, e.g. 2026-FALL"
+          }
+        }
+      },
+      "CurrencyTotal": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          },
+          "totalAmount": {
+            "type": "number",
+            "example": 10000.0
+          },
+          "paidAmount": {
+            "type": "number",
+            "example": 2000.0
+          },
+          "balance": {
+            "type": "number",
+            "example": 8000.0
+          }
+        }
+      },
+      "TermTuition": {
+        "type": "object",
+        "properties": {
+          "term": {
+            "type": "string",
+            "example": "2026-FALL"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Tuition total",
+            "example": 5000.0
+          },
+          "paidAmount": {
+            "type": "number",
+            "example": 2000.0
+          },
+          "balance": {
+            "type": "number",
+            "description": "Outstanding balance = amount - paidAmount",
+            "example": 3000.0
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          }
+        }
+      },
+      "TuitionQueryResponse": {
+        "type": "object",
+        "description": "Tuition of a student. With a term: that term only. Without: every term plus overall totals.",
+        "properties": {
+          "studentNo": {
+            "type": "string",
+            "example": "20230001"
+          },
+          "fullName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "Ayse Yilmaz"
+          },
+          "term": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The requested term, or null for the overall view",
+            "example": "2026-FALL"
+          },
+          "terms": {
+            "type": "array",
+            "description": "Tuition per term, in chronological order",
+            "items": {
+              "$ref": "#/components/schemas/TermTuition"
+            }
+          },
+          "totals": {
+            "type": "array",
+            "description": "Totals per currency over the returned terms (usually one entry)",
+            "items": {
+              "$ref": "#/components/schemas/CurrencyTotal"
+            }
+          }
+        }
+      },
+      "UnpaidTuitionItem": {
+        "type": "object",
+        "properties": {
+          "studentNo": {
+            "type": "string",
+            "example": "20230003"
+          },
+          "fullName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "Zeynep Demir"
+          },
+          "amount": {
+            "type": "number",
+            "example": 6000.0
+          },
+          "paidAmount": {
+            "type": "number",
+            "example": 0.0
+          },
+          "balance": {
+            "type": "number",
+            "example": 6000.0
+          },
+          "currency": {
+            "type": "string",
+            "example": "USD"
+          }
+        }
+      },
+      "UnpaidTuitionPage": {
+        "type": "object",
+        "description": "One page of students with a balance > 0 for the term, ordered by student number.",
+        "properties": {
+          "term": {
+            "type": "string",
+            "example": "2026-FALL"
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32",
+            "description": "1-based page number",
+            "example": 1
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32",
+            "example": 20
+          },
+          "totalItems": {
+            "type": "integer",
+            "format": "int64",
+            "example": 3
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32",
+            "example": 1
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UnpaidTuitionItem"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "description": "Access token from POST /api/v1/auth/login",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

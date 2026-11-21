@@ -1,6 +1,6 @@
 # Tuition API — ER / Data Model
 
-Database: **PostgreSQL**. The schema will be created with Flyway migrations in `tuition-api/`.
+Database: **PostgreSQL**. The schema is created by the Flyway migrations in `tuition-api/src/main/resources/db/migration/` (`V1` schema, `V2` demo data, `V3` login users).
 
 ```mermaid
 erDiagram
