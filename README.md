@@ -11,7 +11,7 @@ The system has four parts:
 | **Tuition REST API** | Java 21, Spring Boot 4.1, Spring Security (JWT), Flyway, PostgreSQL | [`tuition-api/`](tuition-api/) |
 | **API Gateway** | Kong 3.9 (DB-less, declarative config) | [`gateway/`](gateway/) |
 
-**Demo video:** _link will be added_
+**Demo video:** [Watch the demo video](https://drive.google.com/file/d/1Dib4eTC9KcRN86G32MoakmoktNgBZzFQ/view?usp=share_link)
 
 ## Contents
 
